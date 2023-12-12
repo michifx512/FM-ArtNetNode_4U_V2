@@ -1,227 +1,253 @@
 /*
-    Project Title: EFF Service ArtNet Node 4U V2.0
-    Description:   4 Universe ArtNet to DMX Node
-    Author:        Francesco Michieletto @ https://github.com/michifx512, Francesco Santovito @ EFF Service
-    Date:          05/09/2023
-    Version:       2.0.2
+	Project Name: 	ArtNet Node 4U V2
+	Description:   	Four Universe ArtNet to DMX Node based on Raspberry Pi Pico
+	Authors:   		[Francesco Michieletto @ https://github.com/michifx512, Francesco Santovito] @ EFF Service
+	Date: 			05/09/2023
+	Version:   		2.0.3
 
-    Hardware Components:
-    - Raspberry Pi Pico RP2040
-    - WizNet W5500 Lite Ethernet Module
-    - 4x MAX485 TTL modules
-    - Logic level shifters, bunch of resistors and capacitors, etc.
+	Hardware Components:
+		- Custom PCB
+		- Raspberry Pi Pico RP2040
+		- WizNet W5500 Lite Ethernet Module
+		- 4x MAX485 TTL modules
+		- Logic level shifters, bunch of resistors and capacitors, etc.
 
-    Libraries Used:
-    - ArtNet @ https://github.com/hideakitai/ArtNet
-    - Ethernet, SPI
-    - PICO-DMX @ https://github.com/jostlowe/Pico-DMX
-    - FastLED timers by Marc Miller, @ https://github.com/mattncsu/FastLED-Timers
+	Libraries Used:
+		- ArtNet @ https://github.com/hideakitai/ArtNet
+		- Ethernet, SPI
+		- PICO-DMX @ https://github.com/jostlowe/Pico-DMX
+		- FastLED timers by Marc Miller, @ https://github.com/mattncsu/FastLED-Timers
 
-    Changes needed in Ethernet library:
-    - Change SPI Speed to 62.5 MHz
-    - Define ETHERNET_LARGE_BUFFERS
-    - Change the MAX_SOCK_NUM to 1
+	Changes needed in Ethernet library:
+		- Change SPI Speed to 62.5 MHz
+		- Define ETHERNET_LARGE_BUFFERS
+		- Change the MAX_SOCK_NUM to 1
 
 */
 
-
 /*
 
-    TODO: ADD ARTPOLLREPLY,  ADD STATUS LEDS CODE
+	TODO: ADD ARTPOLLREPLY,  ADD STATUS LEDS CODE, WEB SERVER for SETUP
 
 */
 
 // ----- ----- ----- ----- ----- Libraries ----- ----- ----- ----- -----
-#include <ArtnetEther.h>
-#include <SPI.h>
-#include <Ethernet.h>
-#include <DmxOutput.h>
 #include "FastLED_timers.h"
+#include <ArtnetEther.h>
+#include <DmxOutput.h>
+#include <Ethernet.h>
+#include <SPI.h>
 
 // ----- ----- ----- ----- ----- Ethernet Stuff  ----- ----- ----- ----- -----
 #define W5500_RESET_PIN 22
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-byte IP[] = { 10, 0, 0, 10 };
-byte SUBNET[] = { 255, 0, 0, 0 };
-byte DNS[] = { 10, 0, 0, 1 };
-byte GATEWAY[] = { 10, 0, 0, 1 };
+byte mac[] = {0x00, 0x08, 0xDC, 0x00, 0x00, 0x01}; // 00:08:DC is the WizNet MAC address prefix, just for consinstency
+byte IP[] = {10, 0, 0, 11};
+byte SUBNET[] = {255, 0, 0, 0};
+byte DNS[] = {10, 0, 0, 1};
+byte GATEWAY[] = {10, 0, 0, 1};
+
 bool ethConnected = false;
 
 // ----- ----- ----- ----- ----- ArtNet & DMX Stuff ----- ----- ----- ----- -----
-#define NUM_PORTS 4
-byte universes[NUM_PORTS] = { 0, 1, 2, 3 };
 ArtnetReceiver artnet;
+String artnetLongname = "EFF Service ArtNet Node 4U V2";
+String artnetShortname = "ArtNetNode_4U_V2";
+#define NUM_PORTS 4
 #define UNIVERSE_LENGTH 512
+byte universes[NUM_PORTS] = {0, 1, 2, 3}; 
 byte data[NUM_PORTS][UNIVERSE_LENGTH + 1];
-
-int nPackets[NUM_PORTS] = { 0 };  // used for debugging
-
-#define LED_ETH_PIN 21
-#define LED_ART_PIN 20
-
-byte txPins[NUM_PORTS] = { 0, 3, 8, 13 };
-byte enPins[NUM_PORTS] = { 1, 6, 9, 14 };
-byte rxPins[NUM_PORTS] = { 2, 7, 12, 15 };
-byte ledPins[NUM_PORTS] = { 4, 5, 10, 11 };
-
 DmxOutput dmxOutputs[NUM_PORTS];
 
-unsigned long lastUpdate = millis();
-unsigned long lastDMXUpdate[NUM_PORTS] = { 0 };
-unsigned long lastFrame[NUM_PORTS] = { 0 };
+byte nPackets[NUM_PORTS] = {0}; // count for packets received
 
-//  ----- ----- ----- ----- ----- Function declarations  ----- ----- ----- ----- -----
-void PrintSPIPins() {
-    Serial.println("\n\n\nSPI PINS:");
-    Serial.print("SCK Pin: ");
-    Serial.println(SCK);
-    Serial.print("CS Pin: ");
-    Serial.println(SS);
-    Serial.print("MISO Pin: ");
-    Serial.println(MISO);
-    Serial.print("MOSI Pin: ");
-    Serial.println(MOSI);
+// ----- MAX485 Pins -----
+const byte txPins[NUM_PORTS] = {0, 3, 8, 13};
+const byte enPins[NUM_PORTS] = {1, 6, 9, 14};
+const byte rxPins[NUM_PORTS] = {2, 7, 12, 15};
+
+unsigned long lastDMXUpdate[NUM_PORTS] = {0}; // Used for constant 40fps output on the ports
+
+unsigned long currTime = millis();
+unsigned long lastSerialPrintUpdate = millis();
+
+unsigned long lastFrame[NUM_PORTS] = {0};
+unsigned long lastArtFrame = millis();
+
+bool ledState = false;
+// bool blinkArtEnable=false;
+// bool blinkEnable[NUM_PORTS] = {1};
+
+// ----- ----- ----- ----- ----- Status LEDs Stuff ----- ----- ----- ----- -----
+#define LED_ETH_PIN 21
+#define LED_ART_PIN 20
+const byte ledPins[NUM_PORTS] = {4, 5, 10, 11};
+byte ledBrightness = 255; // 8-bit value, Duty Cycle
+byte ledBlink_FullCycleTime = 40; //milliseconds  
+byte ethLedBrightness = 127; // this led is too bright
+
+//  ----- ----- ----- ----- ----- Functions  ----- ----- ----- ----- -----
+void BeginStatusLEDs(){
+	// Just a pinMode setup and a quick flash test at power on
+    pinMode(LED_ART_PIN, OUTPUT);
+	analogWrite(LED_ART_PIN, HIGH);
+    pinMode(LED_ETH_PIN, OUTPUT);
+	analogWrite(LED_ART_PIN, HIGH);
+	for(byte i=0; i<NUM_PORTS; i++){
+        pinMode(ledPins[i], OUTPUT);
+		analogWrite(ledPins[i], HIGH);
+    }
+	delay(100);
+	analogWrite(LED_ART_PIN, LOW);
+	analogWrite(LED_ART_PIN, LOW);
+	for(byte i=0; i<NUM_PORTS; i++){
+        analogWrite(ledPins[i], LOW);
+    }
 }
 
 void W5500_Reset() {
-    Serial.println("Resetting Ethernet Chip ...");
-    pinMode(W5500_RESET_PIN, OUTPUT);
-    digitalWrite(W5500_RESET_PIN, LOW);
-    delay(1);
-    digitalWrite(W5500_RESET_PIN, HIGH);
-    delay(100);
-    Serial.println("Ethernet Reset Done.");
+	Serial.println("Resetting Ethernet Chip ...");
+	pinMode(W5500_RESET_PIN, OUTPUT);
+	analogWrite(W5500_RESET_PIN, LOW);
+	delay(1);
+	analogWrite(W5500_RESET_PIN, HIGH);
+	delay(100);
+	Serial.println("Ethernet Reset Done.");
 }
 
 void BeginEthernet() {
-    //delay(1000);
-    Serial.println("Begin Ethernet");
-    Ethernet.init(SS);
-    IPAddress ip(IP[0], IP[1], IP[2], IP[3]);
-    IPAddress subnet(SUBNET[0], SUBNET[1], SUBNET[2], SUBNET[3]);
-    IPAddress dns(DNS[0], DNS[1], DNS[2], DNS[3]);
-    IPAddress gateway(GATEWAY[0], GATEWAY[1], GATEWAY[2], GATEWAY[3]);
-    Ethernet.begin(mac, ip, dns, gateway, subnet);
-    Serial.println(Ethernet.localIP());
+	// delay(1000);
+	Serial.println("Begin Ethernet");
+	Ethernet.init(SS);
+	IPAddress ip(IP[0], IP[1], IP[2], IP[3]);
+	IPAddress subnet(SUBNET[0], SUBNET[1], SUBNET[2], SUBNET[3]);
+	IPAddress dns(DNS[0], DNS[1], DNS[2], DNS[3]);
+	IPAddress gateway(GATEWAY[0], GATEWAY[1], GATEWAY[2], GATEWAY[3]);
+	Ethernet.begin(mac, ip, dns, gateway, subnet);
+	Serial.println(Ethernet.localIP());
+	if(Ethernet.linkStatus() == LinkON) analogWrite(LED_ETH_PIN, HIGH);
 }
 
 void BeginArtNet() {
-    //delay(1000);
-    Serial.println("Begin ArtNet");
-    artnet.begin(0, 0);
+	// delay(1000);
+	Serial.println("Begin ArtNet");
+	artnet.begin(0, 0);
+	analogWrite(LED_ART_PIN, HIGH);
 }
 
 void BeginDMX() {
-    //delay(1000);
-    Serial.println("Begin DMX");
-    for (int i = 0; i < NUM_PORTS; i++) {
-        digitalWrite(enPins[i], HIGH);
-        dmxOutputs[i].begin(txPins[i], pio0);
-    }
+	// delay(1000);
+	Serial.println("Begin DMX..");
+	for (byte i = 0; i < NUM_PORTS; i++) {
+		pinMode(enPins[i], OUTPUT);
+		analogWrite(enPins[i], HIGH);
+		dmxOutputs[i].begin(txPins[i], pio0);
+		analogWrite(ledPins[i], HIGH);
+	}
 }
-
-/*
-void DMXPacketMemory(){
-    // function to keep sending out last dmx packet recieved if artnet disconnected or no frames recieved, keeps lights on etc.
-    for(byte i=0; i<NUM_PORTS; i++) {
-        if((millis() - lastFrame[i])>500){
-            if((millis()-lastDMXUpdate[i])>21){
-                lastDMXUpdate[i] = millis();
-                Serial.println("DMX MEMORY");
-                dmxOutputs[i].write(data[i], UNIVERSE_LENGTH + 1);
-            }
-        }
-    }
-}
-*/
 
 void DMXOut() {
-    for (byte i = 0; i < NUM_PORTS; i++) {
-        if ((millis() - lastDMXUpdate[i]) > 24) {
-            lastDMXUpdate[i] = millis();
-            dmxOutputs[i].write(data[i], UNIVERSE_LENGTH + 1);
-        }
-    }
+	// to have a constant framerate DMX output of ~40fps
+	// with this method, the last frame is stored in memory and is contiunued to be output if ethernet cable disconnected or artnet signal missing
+	for (byte i = 0; i < NUM_PORTS; i++) {
+		if ((millis() - lastDMXUpdate[i]) > 24) {
+			lastDMXUpdate[i] = millis();
+			dmxOutputs[i].write(data[i], UNIVERSE_LENGTH + 1);
+		}
+	}
 }
 
 void PrintFPStoSerial() {
-    unsigned long time = millis();
-    if (time - lastUpdate > 1000) {
-        lastUpdate = time;
-        if (ethConnected) {
-            for (byte i = 0; i < NUM_PORTS; i++) {
-                Serial.print(nPackets[i]);
-                Serial.print(";\t");
-            }
-            Serial.println(" fps");
-            for (byte i = 0; i < NUM_PORTS; i++) {
-                nPackets[i] = 0;
-            }
-        }else Serial.println("Ethernet link not connected.");
-    }
+	// Print FPS received from ArtNet to the Serial port, for debug
+	if (currTime - lastSerialPrintUpdate > 1000) {
+		lastSerialPrintUpdate = currTime;
+		if (ethConnected) {
+			for (byte i = 0; i < NUM_PORTS; i++) {
+				Serial.print(nPackets[i]);
+				Serial.print(";\t");
+				nPackets[i] = 0;
+			}
+			Serial.println(" fps");
+		} else
+			Serial.println("Ethernet link not connected.");
+	}
+}
+
+void EthLedManagement() {
+	ethConnected = (Ethernet.linkStatus() == LinkON);
+	analogWrite(LED_ETH_PIN, ethConnected * ethLedBrightness);
 }
 
 //  ----- ----- ----- ----- ----- Setup  ----- ----- ----- ----- -----
 void setup() {
+	Serial.begin(115200);
+	BeginStatusLEDs();
+	W5500_Reset();
+	BeginEthernet();
+	artnet.longname(artnetLongname);
+	artnet.shortname(artnetShortname);
+	BeginArtNet();
+	BeginDMX();
 
-    // testing for more than 4 univ
-    /*for(byte i=0; i<NUM_PORTS; i++){
-        universes[i] = i;
-    }*/
+	artnet.subscribe([&](const uint32_t univ, const uint8_t *recData, const uint16_t size) {
+		for (byte i = 0; i < NUM_PORTS; i++) {
+			if (universes[i] == univ) {
+				memcpy(&data[i][1], recData, size);
+				nPackets[i]++;
 
-    Serial.begin(115200);
-    //while (!Serial) { ; }
 
-    PrintSPIPins();
-    W5500_Reset();
-    BeginEthernet();
-    artnet.longname("EFF Service ArtNet Node 4 V2");
-    artnet.shortname("ArtNetNode4");
-    BeginArtNet();
-    BeginDMX();
+				if(millis()-lastFrame[i]>=ledBlink_FullCycleTime){
+					analogWrite(ledPins[i], 0);
+				    lastFrame[i] = millis();
+				}
 
-    /*
-    artnet.subscribe(universes[0],[&](const uint8_t* recData, const uint16_t size){
-        memcpy(&data[universes[0]][1], recData, size);
-        nPackets[universes[0]]++;
-        dmxOutputs[universes[0]].write(data[universes[0]], UNIVERSE_LENGTH + 1);
-    });
-    */
-
-    artnet.subscribe([&](const uint32_t univ, const uint8_t* recData, const uint16_t size) {
-        // new with universe choice
-        for (byte i = 0; i < NUM_PORTS; i++) {
-            if (universes[i] == univ) {
-                memcpy(&data[i][1], recData, size);
-                nPackets[i]++;
-                //lastFrame[i] = millis();
-                //dmxOutputs[i].write(data[i], UNIVERSE_LENGTH + 1);
-            }
-        }
-
-        //old for test
-        /*
-        if (univ < NUM_PORTS) {
-            memcpy(&data[univ][1], recData, size);
-            nPackets[univ]++;
-            dmxOutputs[univ].write(data[univ], UNIVERSE_LENGTH + 1);
-        }*/
-    });
+				// blinkEnable[i] = true;
+				
+				// dmxOutputs[i].write(data[i], UNIVERSE_LENGTH + 1); // to directly output a frame when received. use this if you want to have variable framerate, not reccomended since some lights may have issues
+			}
+		}
+		if(millis()-lastArtFrame>=ledBlink_FullCycleTime){
+			analogWrite(LED_ART_PIN, 0);
+		    lastArtFrame = millis();
+		}
+        //blinkArtEnable = true;
+	});
 }
 
 void loop() {
-    while (true) {
-        artnet.parse();
-        //DMXPacketMemory();
-        EVERY_N_MILLISECONDS(250) {
-            ethConnected = (Ethernet.linkStatus() == LinkON);
-            if (Ethernet.linkStatus() == LinkON) {
-                EVERY_N_MILLISECONDS(1000) {
-                    Serial.println("Link On");
-                }
-            }
-        }
-        DMXOut();
-        PrintFPStoSerial();
-    }
+	while (true) {
+		artnet.parse();
+		EthLedManagement();
+		DMXOut();
+		PrintFPStoSerial();
+		currTime = millis();
+
+
+		for(byte i=0; i<NUM_PORTS; i++){
+			if(currTIme-lastFrame[i]>(ledBlink_FullCycleTime/2)) analogWrite(ledPins[i], ledBrightness);
+		}
+		if(currTime-lastArtFrame>(ledBlink_FullCycleTime/2)) analogWrite(LED_ART_PIN, ledBrightness);
+		
+		/*
+
+        EVERY_N_MILLISECONDS(25){
+			ledState = !ledState;
+			if(blinkArtEnable) analogWrite(LED_ART_PIN, ledBrightness * ledState);
+			for(byte i=0; i<NUM_PORTS; i++){
+				if(blinkEnable[i]) analogWrite(ledPins[i], ledBrightness * ledState);
+			}
+		}
+		EVERY_N_MILLISECONDS(5){
+			for(byte i=0; i<NUM_PORTS; i++){
+				if(millis()-lastFrame[i]>50){
+					blinkEnable[i] = false;
+					analogWrite(ledPins[i], ledBrightness);
+				}
+			}
+			if(millis()-lastArtFrame>50){
+				blinkArtEnable = false;
+				analogWrite(LED_ART_PIN, ledBrightness);
+			}
+		}
+		*/
+	}	
 }
