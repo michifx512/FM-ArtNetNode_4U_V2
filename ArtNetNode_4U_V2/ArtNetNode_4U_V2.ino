@@ -40,11 +40,11 @@
 
 // ----- ----- ----- ----- ----- Ethernet Stuff  ----- ----- ----- ----- -----
 #define W5500_RESET_PIN 22
-byte mac[] = {0x00, 0x08, 0xDC, 0x00, 0x00, 0x01}; // 00:08:DC is the WizNet MAC address prefix, just for consinstency
-byte IP[] = {10, 0, 0, 11};
+byte mac[] = {0x00, 0x08, 0xDC, 0x00, 0x00, 0x01}; // 00:08:DC::: is the WizNet MAC address prefix, just for consinstency with standards
+byte IP[] = {2, 0, 0, 11};
 byte SUBNET[] = {255, 0, 0, 0};
-byte DNS[] = {10, 0, 0, 1};
-byte GATEWAY[] = {10, 0, 0, 1};
+byte DNS[] = {2, 0, 0, 1};
+byte GATEWAY[] = {2, 0, 0, 1};
 
 bool ethConnected = false;
 
@@ -107,9 +107,9 @@ void BeginStatusLEDs(){
 void W5500_Reset() {
 	Serial.println("Resetting Ethernet Chip ...");
 	pinMode(W5500_RESET_PIN, OUTPUT);
-	analogWrite(W5500_RESET_PIN, LOW);
+	digitalWrite(W5500_RESET_PIN, LOW);
 	delay(1);
-	analogWrite(W5500_RESET_PIN, HIGH);
+	digitalWrite(W5500_RESET_PIN, HIGH);
 	delay(100);
 	Serial.println("Ethernet Reset Done.");
 }
@@ -223,7 +223,7 @@ void loop() {
 
 
 		for(byte i=0; i<NUM_PORTS; i++){
-			if(currTIme-lastFrame[i]>(ledBlink_FullCycleTime/2)) analogWrite(ledPins[i], ledBrightness);
+			if(currTime-lastFrame[i]>(ledBlink_FullCycleTime/2)) analogWrite(ledPins[i], ledBrightness);
 		}
 		if(currTime-lastArtFrame>(ledBlink_FullCycleTime/2)) analogWrite(LED_ART_PIN, ledBrightness);
 		
