@@ -1,9 +1,9 @@
 # FM-ArtNetNode_4U_V2
 Four Universe ArtNet to DMX Node based on Raspberry Pi Pico
 
-<img src="photos/Closed%201.jpg" alt="" style="max-width: 28%;">
-<img src="photos/Closed%202.jpg" alt="" style="max-width: 36.2%;">
-<img src="photos/Opened%201.png" alt="" style="max-width: 32%;">
+<img src="photos/Closed%201.jpg" alt="" style="width: 28%;">
+<img src="photos/Closed%202.jpg" alt="" style="width: 36.2%;">
+<img src="photos/Opened%201.png" alt="" style="width: 32%;">
 <!--<img src="photos/PCB%20Completed.png" alt="" style="max-width: 24%;">-->
 
 ---
