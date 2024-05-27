@@ -193,7 +193,8 @@ void setup() {
     //artnet.shortname(artnetShortname);
     BeginArtNet();
     BeginDMX();
-
+    artnet.setArtPollReplyConfig(0x00FF, 0x0000, 0x60, 0x80, artnetShortname, artnetLongname, "");
+    
     //artnet.subscribeArtDmxUniverse([&](const uint32_t univ, const uint8_t *recData, const uint16_t size)
     artnet.subscribeArtDmx([&](const uint8_t* data, uint16_t size, const ArtDmxMetadata& metadata, const ArtNetRemoteInfo& remote) {
         for (byte i = 0; i < NUM_PORTS; i++) {
