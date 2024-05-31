@@ -1,9 +1,9 @@
 /*
 	Project Name: 	ArtNet Node 4U V2
 	Description:   	Four Universe ArtNet to DMX Node based on Raspberry Pi Pico
-	Authors:   		[Francesco Michieletto @ https://github.com/michifx512, Francesco Santovito] @ EFF Service
-	Date: 			05/09/2023
-	Version:   		2.1.0
+	Authors:   		  [Francesco Michieletto @ https://github.com/michifx512] @ EFF Service
+	Creation Date:  05/09/2023
+	Version:   		  2.1.2 (31/05/2024 @ 02:30)
 
 	Hardware Components:
 		- Custom PCB
@@ -13,20 +13,21 @@
 		- Logic level shifters, bunch of resistors and capacitors, etc.
 
 	Libraries Used:
-		- ArtNet @ https://github.com/hideakitai/ArtNet
-		- Ethernet, SPI
-		- PICO-DMX @ https://github.com/jostlowe/Pico-DMX
+		- ArtNet @ https://github.com/hideakitai/ArtNet (v0.4.4 Working)
+		- Ethernet @ https://www.arduino.cc/reference/en/libraries/ethernet/ (v2.0.2 working)
+    - SPI
+		- PICO-DMX @ https://github.com/jostlowe/Pico-DMX (v3.1.0 Working)
 		- FastLED timers by Marc Miller, @ https://github.com/mattncsu/FastLED-Timers
 
 	Changes needed in Ethernet library:
-		- Change SPI Speed to 62.5 MHz
+		- Change SPI Speed to 62.5 MHz (w5100.h file)
 		- Define ETHERNET_LARGE_BUFFERS
 		- Change the MAX_SOCK_NUM to 1
 
 */
 
 /*
-	TODO: ADD ARTPOLLREPLY (changed with ArtNet Library V 0.4.x), WEB SERVER for SETUP
+	TODO: FIX ARTPOLLREPLY (changed with ArtNet Library V 0.4.x), WEB SERVER for SETUP
 */
 
 // ----- ----- ----- ----- ----- Libraries ----- ----- ----- ----- -----
@@ -72,8 +73,6 @@ unsigned long lastFrame[NUM_PORTS] = { 0 };
 unsigned long lastArtFrame = millis();
 
 bool ledState = false;
-// bool blinkArtEnable=false;
-// bool blinkEnable[NUM_PORTS] = {1};
 
 // ----- ----- ----- ----- ----- Status LEDs Stuff ----- ----- ----- ----- -----
 #define LED_ETH_PIN 21
@@ -198,19 +197,16 @@ void setup() {
     //artnet.subscribeArtDmxUniverse([&](const uint32_t univ, const uint8_t *recData, const uint16_t size)
     artnet.subscribeArtDmx([&](const uint8_t* data, uint16_t size, const ArtDmxMetadata& metadata, const ArtNetRemoteInfo& remote) {
         for (byte i = 0; i < NUM_PORTS; i++) {
-            if (universes[i] == metadata.universe) {
+            if (universes[i] == metadata.universe+(metadata.subnet*16)) {
                 memcpy(&dmxData[i][1], data, size);
                 nPackets[i]++;
-
+                //Serial.println(String("universe:") + String(metadata.universe) + String("\tsubnet:") + String(metadata.subnet));
                 if (millis() - lastFrame[i] >= ledBlink_FullCycleTime) {
                     digitalWrite(ledPins[i], 0);
                     lastFrame[i] = millis();
                 }
                 //Serial.print("Source IP: ");
                 //Serial.println(remote.ip);
-
-                // blinkEnable[i] = true;
-
                 // dmxOutputs[i].write(data[i], UNIVERSE_LENGTH + 1); // to directly output a frame when received. use this if you want to have variable framerate, not reccomended since some lights may have issues
             }
         }
@@ -218,7 +214,6 @@ void setup() {
             digitalWrite(LED_ART_PIN, 0);
             lastArtFrame = millis();
         }
-        //blinkArtEnable = true;
     });
 }
 
@@ -229,34 +224,9 @@ void loop() {
         DMXOut();
         PrintFPStoSerial();
         currTime = millis();
-
-
         for (byte i = 0; i < NUM_PORTS; i++) {
             if (currTime - lastFrame[i] > (ledBlink_FullCycleTime / 2)) digitalWrite(ledPins[i], HIGH);
         }
         if (currTime - lastArtFrame > (ledBlink_FullCycleTime / 2)) digitalWrite(LED_ART_PIN, HIGH);
-
-        /*
-
-        EVERY_N_MILLISECONDS(25){
-			ledState = !ledState;
-			if(blinkArtEnable) analogWrite(LED_ART_PIN, ledBrightness * ledState);
-			for(byte i=0; i<NUM_PORTS; i++){
-				if(blinkEnable[i]) analogWrite(ledPins[i], ledBrightness * ledState);
-			}
-		}
-		EVERY_N_MILLISECONDS(5){
-			for(byte i=0; i<NUM_PORTS; i++){
-				if(millis()-lastFrame[i]>50){
-					blinkEnable[i] = false;
-					analogWrite(ledPins[i], ledBrightness);
-				}
-			}
-			if(millis()-lastArtFrame>50){
-				blinkArtEnable = false;
-				analogWrite(LED_ART_PIN, ledBrightness);
-			}
-		}
-		*/
     }
 }
