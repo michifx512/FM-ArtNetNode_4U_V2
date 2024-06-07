@@ -1,20 +1,28 @@
 # FM-ArtNetNode_4U_V2
-Four Universe ArtNet to DMX Node based on Raspberry Pi Pico
+Custom Made Four Universe ArtNet to DMX Node based on Raspberry Pi Pico
+## Table of Contents
+- [1. Introduzione](#1-introduzione)
+- [2. Percorso di realizzazione](#2-percorso-di-realizzazione)
+  - [2.1 - Analisi preliminare](#21---analisi-preliminare)
+  - [2.2 - Progettazione, Scelta componenti, Disegno PCB, disegno CAD](#22---progettazione-scelta-componenti-disegno-pcb-disegno-cad)
+  - [2.3 - Realizzazione, Test Circuito, Programmazione Firmware](#23---realizzazione-test-circuito-programmazione-firmware)
+  - [2.4 - Test e Migliorie](#24---test-e-migliorie)
+- [3. Conclusioni](#3-conclusioni)
+- [Visualizza ulteriori informazioni](#visualizza-ulteriori-informazioni)
 <div>
-   <img src="photos/Closed%201.jpg" alt="" style="width: 18%;">
-   <img src="photos/Closed%202.jpg" alt="" style="width: 23%;">
-   <img src="photos/Opened%201.png" alt="" style="width: 20%;">
-   <img src="photos/PCB%20Completed.png" alt="" style="width: 17%;">
+   <img src="photos/CLOSED FRONT.jpg" alt="" style="width: 18%;">
+   <img src="photos/FRONT ANGLE.jpg" alt="" style="width: 23%;">
+   <img src="photos/INTERNAL.jpg" alt="" style="width: 20%;">
+   <img src="photos/PCB.png" alt="" style="width: 17%;">
 </div>
 
-
 ---
-[Puoi visualizzare il documento di progetto completo qui](./FM-ArtNetNode.pdf).
+[Puoi visualizzare il documento di progetto completo qui](./FM-ArtNetNode.pdf)
 --
 
 ## 1. Introduzione
 
-Il FM-ArtNetNode è un dispositivo progettato per analizzare i protocolli Ethernet come ArtNet e trasmettere i dati estratti su un bus DMX, utilizzato per il controllo di sistemi di illuminazione in eventi, concerti e discoteche. 
+FM-ArtNetNode è un dispositivo progettato per analizzare i protocolli Ethernet come ArtNet e trasmettere i dati estratti su un bus DMX, utilizzato per il controllo di sistemi di illuminazione in eventi, concerti e discoteche. 
 La completa realizzazione del progetto rappresenta il mio "capolavoro" per la maturità, in ambito extrascolastico.
 Fasi dalla pregettazione della scheda PCB, scelta componenti, studio e risoluzione di problemi, sviluppo del firmware, test.
 
@@ -40,7 +48,7 @@ Fasi dalla pregettazione della scheda PCB, scelta componenti, studio e risoluzio
    - PCB: 100mm x 100mm (per ridurre costi e migliorare le comunicazioni SPI ad alta frequenza)
 
 ### 2.2 - Progettazione, Scelta componenti, Disegno PCB, disegno CAD
----
+
 **Componenti Principali**:
    - **Microcontrollore**: Raspberry Pi Pico, con 2 porte seriali fisiche e 8 porte seriali PIO.
    - **Chip MAX485**: per la comunicazione differenziale RS-485, standard DMX
@@ -56,8 +64,6 @@ Fasi dalla pregettazione della scheda PCB, scelta componenti, studio e risoluzio
    - Aggiunta di condensatori di stabilizzazione, resistenze adatte a led
 
 ### 2.3 - Realizzazione, Test Circuito, Programmazione Firmware
----
-
 **Costruzione Fisica**:
    - Saldatura dei componenti sulla PCB.
    - Progettazione e stampa 3D della scocca del dispositivo con AutoCAD.
