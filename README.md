@@ -8,12 +8,13 @@ Custom Made Four Universe ArtNet to DMX Node based on Raspberry Pi Pico
   - [2.3 - Realizzazione, Test Circuito, Programmazione Firmware](#23---realizzazione-test-circuito-programmazione-firmware)
   - [2.4 - Test e Migliorie](#24---test-e-migliorie)
 - [3. Conclusioni](#3-conclusioni)
-- [Visualizza ulteriori informazioni](#visualizza-ulteriori-informazioni)
+- [Visualizza ulteriori informazioni (Documento Completo)](#visualizza-ulteriori-informazioni)
+---
 <div>
-   <img src="photos/CLOSED FRONT.jpg" alt="" style="width: 18%;">
-   <img src="photos/FRONT ANGLE.jpg" alt="" style="width: 23%;">
-   <img src="photos/INTERNAL.jpg" alt="" style="width: 20%;">
-   <img src="photos/PCB.png" alt="" style="width: 17%;">
+   <img src="photos/CLOSED FRONT.jpg" alt="" style="width: 20%;">
+   <img src="photos/FRONT ANGLE.jpg" alt="" style="width: 24%;">
+   <img src="photos/INTERNAL.jpg" alt="" style="width: 24%;">
+   <img src="photos/PCB.png" alt="" style="width: 19%;">
 </div>
 
 ---
@@ -48,7 +49,7 @@ Fasi dalla pregettazione della scheda PCB, scelta componenti, studio e risoluzio
    - PCB: 100mm x 100mm (per ridurre costi e migliorare le comunicazioni SPI ad alta frequenza)
 
 ### 2.2 - Progettazione, Scelta componenti, Disegno PCB, disegno CAD
-
+---
 **Componenti Principali**:
    - **Microcontrollore**: Raspberry Pi Pico, con 2 porte seriali fisiche e 8 porte seriali PIO.
    - **Chip MAX485**: per la comunicazione differenziale RS-485, standard DMX
@@ -64,6 +65,7 @@ Fasi dalla pregettazione della scheda PCB, scelta componenti, studio e risoluzio
    - Aggiunta di condensatori di stabilizzazione, resistenze adatte a led
 
 ### 2.3 - Realizzazione, Test Circuito, Programmazione Firmware
+---
 **Costruzione Fisica**:
    - Saldatura dei componenti sulla PCB.
    - Progettazione e stampa 3D della scocca del dispositivo con AutoCAD.
@@ -76,7 +78,8 @@ Fasi dalla pregettazione della scheda PCB, scelta componenti, studio e risoluzio
    - Gestione dei led di stato alla ricezione di pacchetti
    - Gestione di stampe di debug su seriale
 
-### 2.4 - Test e Migliorie:
+### 2.4 - Test e Migliorie
+---
    - Test di funzionamento con stress test di lunga durata e alta frequenza di pacchetti.
    - Implementazione di funzioni aggiuntive come la memoria dell’ultimo frame e un web server per configurazioni IP, MAC, Universi e porte utilizzate.
 
