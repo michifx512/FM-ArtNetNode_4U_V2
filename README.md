@@ -14,7 +14,7 @@ Custom Made Four Universe ArtNet to DMX Node based on Raspberry Pi Pico
    <img src="photos/CLOSED FRONT.jpg" alt="" style="width: 17%;">
    <img src="photos/EXTERNAL.jpg" alt="" style="width: 21%;">
    <img src="photos/INTERNAL.jpg" alt="" style="width: 21%;">
-   <img src="photos/PCB.png" alt="" style="width: 16.5%;">
+   <img src="photos/PCB.png" alt="" style="width: 17%;">
    <img src="photos/LIGHTS.jpg" alt="" style="width: 21%;">
 </div>
 
