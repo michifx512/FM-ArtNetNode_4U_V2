@@ -11,10 +11,11 @@ Custom Made Four Universe ArtNet to DMX Node based on Raspberry Pi Pico
 - [Visualizza ulteriori informazioni (Documento Completo)](#visualizza-ulteriori-informazioni)
 ---
 <div>
-   <img src="photos/CLOSED FRONT.jpg" alt="" style="width: 20%;">
-   <img src="photos/FRONT ANGLE.jpg" alt="" style="width: 24%;">
-   <img src="photos/INTERNAL.jpg" alt="" style="width: 24%;">
-   <img src="photos/PCB.png" alt="" style="width: 19%;">
+   <img src="photos/CLOSED FRONT.jpg" alt="" style="width: 17%;">
+   <img src="photos/EXTERNAL.jpg" alt="" style="width: 21%;">
+   <img src="photos/INTERNAL.jpg" alt="" style="width: 21%;">
+   <img src="photos/PCB.png" alt="" style="width: 16.5%;">
+   <img src="photos/LIGHTS.jpg" alt="" style="width: 21%;">
 </div>
 
 ---
@@ -91,3 +92,7 @@ Il progetto FM-ArtNetNode è stato un’esperienza formativa entusiasmante che m
 ## Visualizza ulteriori informazioni
 
 Per ulteriori dettagli, puoi visualizzare il documento di progetto completo [qui](./FM-ArtNetNode.pdf).
+
+---
+
+<img src="photos/LIGHTS.jpg">
