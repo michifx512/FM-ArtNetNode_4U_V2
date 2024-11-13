@@ -1,15 +1,21 @@
 /*
 	Project Name: 	ArtNet Node 4U V2
 	Description:   	Four Universe ArtNet to DMX Node based on Raspberry Pi Pico
-	Authors:   		  [Francesco Michieletto @ https://github.com/michifx512] @ EFF Service
+	Authors:   		[Francesco Michieletto @ https://github.com/michifx512] @ EFF Service
 	Creation Date:  05/09/2023
-	Version:   		2.1.3 (30/10/2024)
+	Version:   		2.2.0 BETA
+
+
+
+    !!!!!!!!! WARNING: THIS IS A BETA VERSION, NEW FEATURES MAY NOT WORK PROPERLY !!!!!!!!!
+
+
 
 	Hardware Components:
 		- Custom PCB
 		- Raspberry Pi Pico RP2040
 		- WizNet W5500 Lite Ethernet Module
-		- 4x MAX485 TTL modules
+		- 4x MAX485 TTL modulesa
 		- Logic level shifters, bunch of resistors and capacitors, etc.
 
 	Libraries Used:
@@ -28,8 +34,10 @@
 
 /*
 	TODO: FIX ARTPOLLREPLY (changed with ArtNet Library V 0.4.x), WEB SERVER for SETUP
-    // TEST OK
+    // TEST 
 */
+
+#define PROJECT_VERSION "2.2.0 BETA"
 
 // ----- ----- ----- ----- ----- Libraries ----- ----- ----- ----- -----
 #include "FastLED_timers.h"
@@ -37,6 +45,7 @@
 #include <DmxOutput.h>
 #include <Ethernet.h>
 #include <SPI.h>
+#include <EEPROM.h>
 
 // ----- ----- ----- ----- ----- Ethernet Stuff  ----- ----- ----- ----- -----
 #define W5500_RESET_PIN 22
@@ -58,7 +67,7 @@ byte universes[NUM_PORTS] = { 0, 1, 2, 3 };
 byte dmxData[NUM_PORTS][UNIVERSE_LENGTH + 1];
 DmxOutput dmxOutputs[NUM_PORTS];
 
-byte nPackets[NUM_PORTS] = { 0 };  // count for packets received
+byte nPackets[NUM_PORTS] = { 0 };  // count for packets received on each universe
 
 // ----- MAX485 Pins -----
 const byte txPins[NUM_PORTS] = { 0, 3, 8, 13 };
@@ -79,16 +88,16 @@ bool ledState = false;
 #define LED_ETH_PIN 21
 #define LED_ART_PIN 20
 const byte ledPins[NUM_PORTS] = { 4, 5, 10, 11 };
-byte ledBrightness = 255;          // 8-bit value, Duty Cycle
-byte ledBlink_FullCycleTime = 50;  //milliseconds
-byte ethLedBrightness = 10;        // this led is too bright
+byte ledBrightness = 255;          // PWM Duty Cycle !!!! TO BE FIXED !!!!
+byte ethLedBrightness = 10;        // kept separated because the ethernet led is too bright
+byte ledBlink_FullCycleTime = 50;  // milliseconds
 
-//  ----- ----- ----- ----- ----- Functions  ----- ----- ----- ----- -----
+// ----- ----- ----- ----- ----- Functions  ----- ----- ----- ----- -----
 void BeginStatusLEDs() {
     // Just a pinMode setup and a quick flash test at power on
     pinMode(LED_ART_PIN, OUTPUT);
-    digitalWrite(LED_ART_PIN, HIGH);
     pinMode(LED_ETH_PIN, OUTPUT);
+    digitalWrite(LED_ART_PIN, HIGH);
     digitalWrite(LED_ETH_PIN, HIGH);
     for (byte i = 0; i < NUM_PORTS; i++) {
         pinMode(ledPins[i], OUTPUT);
@@ -114,7 +123,6 @@ void W5500_Reset() {
 }
 
 void BeginEthernet() {
-    // delay(1000);
     Serial.println("Begin Ethernet");
     Ethernet.init(SS);
     IPAddress ip(IP[0], IP[1], IP[2], IP[3]);
@@ -130,19 +138,16 @@ void BeginEthernet() {
 }
 
 void BeginArtNet() {
-    // delay(1000);
     Serial.println("Begin ArtNet");
     artnet.begin();
     analogWrite(LED_ART_PIN, ledBrightness);
 }
 
 void BeginDMX() {
-    // delay(1000);
     Serial.println("Begin DMX..");
     for (byte i = 0; i < NUM_PORTS; i++) {
         pinMode(enPins[i], OUTPUT);
         digitalWrite(enPins[i], HIGH);
-
         dmxOutputs[i].begin(txPins[i], pio0);
         //analogWrite(ledPins[i], ledBrightness);
         digitalWrite(ledPins[i], HIGH);
@@ -151,7 +156,7 @@ void BeginDMX() {
 
 void DMXOut() {
     // to have a constant framerate DMX output of ~40fps
-    // with this method, the last frame is stored in memory and is contiunued to be output if ethernet cable disconnected or artnet signal missing
+    // also, the last frame is stored in the memory and is continued to be output if input signal is lost (e.g. cable disconnected or output disabled)
     for (byte i = 0; i < NUM_PORTS; i++) {
         if ((millis() - lastDMXUpdate[i]) > 24) {
             lastDMXUpdate[i] = millis();
@@ -182,9 +187,30 @@ void EthLedManagement() {
     //digitalWrite(LED_ETH_PIN, ethConnected);
 }
 
-//  ----- ----- ----- ----- ----- Setup  ----- ----- ----- ----- -----
+void SaveDMXToEEPROM() {
+    for (byte i = 0; i < NUM_PORTS; i++) {
+        for (int j = 0; j < UNIVERSE_LENGTH + 1; j++) {
+            EEPROM.update(i * (UNIVERSE_LENGTH + 1) + j, dmxData[i][j]);
+        }
+    }
+    EEPROM.commit();
+    Serial.println("DMX data saved to EEPROM.");
+}
+
+void LoadDMXFromEEPROM() {
+    for (byte i = 0; i < NUM_PORTS; i++) {
+        for (int j = 0; j < UNIVERSE_LENGTH + 1; j++) {
+            dmxData[i][j] = EEPROM.read(i * (UNIVERSE_LENGTH + 1) + j);
+        }
+    }
+    Serial.println("DMX data loaded from EEPROM.");
+}
+
+// ----- ----- ----- ----- ----- Setup  ----- ----- ----- ----- -----
 void setup() {
     Serial.begin(115200);
+    EEPROM.begin(NUM_PORTS * (UNIVERSE_LENGTH + 1));
+    LoadDMXFromEEPROM();
     BeginStatusLEDs();
     W5500_Reset();
     BeginEthernet();
@@ -217,7 +243,7 @@ void setup() {
         }
     });
 }
-
+// ----- ----- ----- ----- ----- Loop  ----- ----- ----- ----- -----
 void loop() {
     while (true) {
         artnet.parse();
@@ -225,9 +251,18 @@ void loop() {
         DMXOut();
         PrintFPStoSerial();
         currTime = millis();
+        
         for (byte i = 0; i < NUM_PORTS; i++) {
             if (currTime - lastFrame[i] > (ledBlink_FullCycleTime / 2)) digitalWrite(ledPins[i], HIGH);
         }
         if (currTime - lastArtFrame > (ledBlink_FullCycleTime / 2)) digitalWrite(LED_ART_PIN, HIGH);
+
+        // Check for custom serial command to save DMX data, used in case of power loss
+        if (Serial.available()) {
+            String command = Serial.readStringUntil('\n');
+            if (command == "/SaveDMX") {
+                SaveDMXToEEPROM();
+            }
+        }
     }
 }
