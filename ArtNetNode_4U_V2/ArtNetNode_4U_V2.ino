@@ -1,9 +1,9 @@
 /*
 	Project Name: 	ArtNet Node 4U V2
 	Description:   	Four Universe ArtNet to DMX Node based on Raspberry Pi Pico
-	Authors:   		  [Francesco Michieletto @ https://github.com/michifx512] @ EFF Service
+	Authors:   		[Francesco Michieletto @ https://github.com/michifx512] @ EFF Service
 	Creation Date:  05/09/2023
-	Version:   		2.1.3 (30/10/2024)
+	Version:   		2.2.0 (15/11/2024)
 
 	Hardware Components:
 		- Custom PCB
@@ -26,11 +26,6 @@
 
 */
 
-/*
-	TODO: FIX ARTPOLLREPLY (changed with ArtNet Library V 0.4.x), WEB SERVER for SETUP
-    // TEST OK
-*/
-
 // ----- ----- ----- ----- ----- Libraries ----- ----- ----- ----- -----
 #include "FastLED_timers.h"
 #include <ArtnetEther.h>
@@ -50,13 +45,14 @@ bool ethConnected = false;
 
 // ----- ----- ----- ----- ----- ArtNet & DMX Stuff ----- ----- ----- ----- -----
 ArtnetReceiver artnet;
-String artnetLongname = "EFF Service ArtNet Node 4U V2";
+String artnetLongname = "ArtNet Node 4U V2";
 String artnetShortname = "ArtNetNode_4U_V2";
 #define NUM_PORTS 4
 #define UNIVERSE_LENGTH 512
 byte universes[NUM_PORTS] = { 0, 1, 2, 3 };
 byte dmxData[NUM_PORTS][UNIVERSE_LENGTH + 1];
 DmxOutput dmxOutputs[NUM_PORTS];
+uint8_t sw_in[4]={0,1,2,3};
 
 byte nPackets[NUM_PORTS] = { 0 };  // count for packets received
 
@@ -79,9 +75,9 @@ bool ledState = false;
 #define LED_ETH_PIN 21
 #define LED_ART_PIN 20
 const byte ledPins[NUM_PORTS] = { 4, 5, 10, 11 };
-byte ledBrightness = 255;          // 8-bit value, Duty Cycle
-byte ledBlink_FullCycleTime = 50;  //milliseconds
-byte ethLedBrightness = 10;        // this led is too bright
+byte ledBrightness = 255;          // PWM Duty Cycle !!!! TO BE FIXED !!!!
+byte ethLedBrightness = 10;        // kept separated because the ethernet led is too bright
+byte ledBlink_FullCycleTime = 50;  // milliseconds
 
 //  ----- ----- ----- ----- ----- Functions  ----- ----- ----- ----- -----
 void BeginStatusLEDs() {
@@ -151,9 +147,9 @@ void BeginDMX() {
 
 void DMXOut() {
     // to have a constant framerate DMX output of ~40fps
-    // with this method, the last frame is stored in memory and is contiunued to be output if ethernet cable disconnected or artnet signal missing
+    // also, the last frame is stored in the memory and is continued to be output if input signal is lost (e.g. cable disconnected or output disabled)
     for (byte i = 0; i < NUM_PORTS; i++) {
-        if ((millis() - lastDMXUpdate[i]) > 24) {
+        if (((millis() - lastDMXUpdate[i]) > 24) && !dmxOutputs[i].busy()) { // waiting 25ms for every port to keep ~40fps, and waiting for the output to be free to write the next frame 
             lastDMXUpdate[i] = millis();
             dmxOutputs[i].write(dmxData[i], UNIVERSE_LENGTH + 1);
         }
@@ -188,14 +184,9 @@ void setup() {
     BeginStatusLEDs();
     W5500_Reset();
     BeginEthernet();
-    // TODO FIX ARTPOLLREPLY WITH NEW CODE (ArtNet Library Version 0.4.X)
-    //artnet.longname(artnetLongname);
-    //artnet.shortname(artnetShortname);
     BeginArtNet();
-    BeginDMX();
-    artnet.setArtPollReplyConfig(0x00FF, 0x0000, 0x60, 0x80, artnetShortname, artnetLongname, "", uint8_t sw_in[NUM_PORTS] = {0});
-    
-    //artnet.subscribeArtDmxUniverse([&](const uint32_t univ, const uint8_t *recData, const uint16_t size)
+    //BeginDMX(); //--- COMMENTED BECAUSE MOVED TO CORE1
+    artnet.setArtPollReplyConfig(0x00FF, 0x0000, 0x60, 0x80, artnetShortname, artnetLongname, "", sw_in);
     artnet.subscribeArtDmx([&](const uint8_t* data, uint16_t size, const ArtDmxMetadata& metadata, const ArtNetRemoteInfo& remote) {
         for (byte i = 0; i < NUM_PORTS; i++) {
             if (universes[i] == metadata.universe+(metadata.subnet*16)) {
@@ -208,7 +199,7 @@ void setup() {
                 }
                 //Serial.print("Source IP: ");
                 //Serial.println(remote.ip);
-                // dmxOutputs[i].write(data[i], UNIVERSE_LENGTH + 1); // to directly output a frame when received. use this if you want to have variable framerate, not reccomended since some lights may have issues
+                //dmxOutputs[i].write(data[i], UNIVERSE_LENGTH + 1); // to directly output a frame when received. use this if you want to have variable framerate, not reccomended since some lights may have issues
             }
         }
         if (millis() - lastArtFrame >= ledBlink_FullCycleTime) {
@@ -218,11 +209,15 @@ void setup() {
     });
 }
 
+void setup1(){
+    BeginDMX();
+}
+
 void loop() {
     while (true) {
         artnet.parse();
         EthLedManagement();
-        DMXOut();
+        //DMXOut(); //--- COMMENTED BECAUSE MOVED TO CORE1
         PrintFPStoSerial();
         currTime = millis();
         for (byte i = 0; i < NUM_PORTS; i++) {
@@ -230,4 +225,8 @@ void loop() {
         }
         if (currTime - lastArtFrame > (ledBlink_FullCycleTime / 2)) digitalWrite(LED_ART_PIN, HIGH);
     }
+}
+
+void loop1(){
+    DMXOut();
 }
